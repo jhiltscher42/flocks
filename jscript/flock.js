@@ -1,4 +1,4 @@
-define(["vector3d","cubeTree","cubeItem","Stopwatch"],function(vector,cubeTree,cubeItem,Stopwatch){
+define(["vector3d","cubeTree","cubeItem","Stopwatch","Three","jQuery"],function(vector,cubeTree,cubeItem,Stopwatch,THREE,$){
 	var CANVAS_WIDTH, CANVAS_HEIGHT, MODEL_DEPTH=2000,
 	FLOCK_POPULATION=1,
 	config={MAX_SPEED:20,

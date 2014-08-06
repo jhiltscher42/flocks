@@ -1,4 +1,4 @@
-define(["jquery"],function($){
+define(["jQuery"],function($){
  var fadeMinimizer=function(fromIntensity,toIntensity,duration,start_time){
    //draw the minizer at full
    if (start_time===undefined)

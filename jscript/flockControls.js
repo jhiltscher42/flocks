@@ -1,4 +1,4 @@
-require(["jquery","flock"],function($,flockConfig){
+require(["jQuery","flock","controlpane","jquery-ui"],function($,flockConfig){
 
    $(document).ready(function(){
 
@@ -10,7 +10,6 @@ require(["jquery","flock"],function($,flockConfig){
                        value:flockConfig[conf_ob_id],
                        change:function(event,ui)
                           {
-//                             $("#cCanvas")[0].getContext("2d").clearRect(0,0,1000,1000);
                              flockConfig[conf_ob_id]=ui.value;
                           }
    
