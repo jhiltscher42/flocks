@@ -76,36 +76,13 @@ define(["vector3d","cubeTree","cubeItem","Stopwatch","Three","jQuery"],function(
     var makeAFlocker=function()
     {
 	var flocker=new cubeItem(flockers.length,Math.random()*CANVAS_WIDTH, Math.random()*CANVAS_HEIGHT,Math.random()*MODEL_DEPTH);
-	flocker.colorTimer=0;
-	flocker.color='rgb(255,255,255)';
-	flocker.setColor=function(newcolor)
-	{
-	    this.color=newcolor;
-	    this.colorTimer=0;
-	}
-	flocker.forwardColor=function(el){
-	    el.colorTimer++;
-	    if (el.colorTimer>=20)
-		{
-		    el.colorTimer=0;
-		    if ((Math.random()*100) <= 10)
-			{
-			    el.color='rgb('+(Math.floor(Math.random()*100)+155)+","+
-					      (Math.floor(Math.random()*100)+155)+","+
-					  (Math.floor(Math.random()*100)+155)+")";
-			    //this.color='rgb(255,0,0)';
-			}
-		    else
-			{
-			    el.neighbors.forEach(function(neighbor){neighbor.mate.color=el.color; neighbor.mate.colorTimer=0;});
-			}
-		}
-	}
-	    
-	flocker.momentum=vector.prototype.vectorFromPolarDegrees(Math.random()*config.MAX_SPEED,Math.random()*360, (Math.random()*180)-90);
+		flocker.colorTimer=0;
+		flocker.color='rgb(255,255,255)';
+			
+		flocker.momentum=vector.prototype.vectorFromPolarDegrees(Math.random()*config.MAX_SPEED,Math.random()*360, (Math.random()*180)-90);
 
-	flockers.push(flocker);
-	trackingTree.addItem(flocker);
+		flockers.push(flocker);
+		trackingTree.addItem(flocker);
 	
     };
 	
@@ -113,8 +90,14 @@ define(["vector3d","cubeTree","cubeItem","Stopwatch","Three","jQuery"],function(
 
     var getNewMomentum=function(el,index,ar)
     {
-	var treeMates=trackingTree.getProximateList({x:el.getPos().x,y:el.getPos().y,z:el.getPos().z,range:config.NEIGHBOR_DISTANCE});
+	//treeMates are all flockers within NEIGHBOR_DISTANCE of el
+	var treeMates=trackingTree.getProximateList(
+		{x:el.getPos().x,y:el.getPos().y,z:el.getPos().z,
+		range:config.NEIGHBOR_DISTANCE});
+	//myMates are all treeMates except el
 	var myMates=treeMates.filter(function(a){return el.name!=a.name;});
+	//el.neighbors is the old list of neighbors, with a threeJS line reference posibly attached.
+	//this seems like an expensive way to do this
 	if (el.neighbors){
 		el.neighbors.forEach(function(neighbor){
 			//remove neighbor line from scene
@@ -145,6 +128,7 @@ define(["vector3d","cubeTree","cubeItem","Stopwatch","Three","jQuery"],function(
 		});
 	//I like to move towards the center of myMates
 		var matesPositions=myMates.map(function(a){return new vector(a.getPos().x,a.getPos().y,a.getPos().z)});
+		//sumVectors returns a vector type, which has a divideByScalar method
 		var centerOfMates=matesPositions.reduce(sumVectors).divideByScalar(myMates.length);
 
 		var centralMomentum=new vector(centerOfMates.X-el.getPos().x,
@@ -244,43 +228,7 @@ define(["vector3d","cubeTree","cubeItem","Stopwatch","Three","jQuery"],function(
 	catch(e){}
     };
 
-    var drawnBirdWidth=0;
-    var drawnBirdHeight=0;
 
-    var old_doDraw=function(el)
-    {
-	cGC.fillStyle=el.color; //'rgb(255,255,255)';
-	cGC.strokeStyle='rgb(0,0,255)';
-	cGC.lineWidth=1;
-	var X=el.getPos().x,Y=el.getPos().y, Z=el.getPos().z;
-	var bSize=(MODEL_DEPTH-Z)/(MODEL_DEPTH);
-	drawnBirdWidth=bSize*30;
-	drawnBirdHeight=bSize*30;
-	/*
-	cGC.fillRect(X-(Math.floor(drawnBirdWidth/2)),
-		     Y-(Math.floor(drawnBirdHeight/2)),
-		     drawnBirdWidth,
-		     drawnBirdHeight);
-	*/
-	cGC.beginPath();
-	cGC.arc(X,Y,drawnBirdWidth,0,Math.PI*2,true);
-	cGC.fill();
-	cGC.closePath();
-	if (el.neighbors)
-	    {
-		cGC.beginPath();
-		el.neighbors.forEach(function(neighbor){
-			cGC.moveTo(X,Y);
-			cGC.lineTo(neighbor.x,neighbor.y);
-		    });
-	   	cGC.stroke();
-	    }
-    }
-    
-	function neighborToSpike(neighbor){
-		return new Three.Vector3(neighbor.x,neighbor.y,neighbor.z);
-	}
-	
 	var doDraw=function(el){
 		//oh.  in THREE, we don't keep creating objects, that's Bad.  Ah.
 		if (!("threeMODEL" in el)){
@@ -341,83 +289,15 @@ define(["vector3d","cubeTree","cubeItem","Stopwatch","Three","jQuery"],function(
 	var doErase=function(el){
 	}
 	
-    var Old_doErase=function(el)
-    {
-	cGC.strokeStyle='rgb(0,0,0)';
-	cGC.lineWidth=1+config.ERASE_INSURANCE;
-	var X=el.getPos().x,Y=el.getPos().y, Z=el.getPos().z;
-	var bSize=(MODEL_DEPTH-Z)/(MODEL_DEPTH);
-	drawnBirdWidth=bSize*30;
-	drawnBirdHeight=bSize*30;
-	/*
-	cGC.clearRect(X-(Math.floor(drawnBirdWidth/2)+config.ERASE_INSURANCE),
-                     Y-(Math.floor(drawnBirdHeight/2)+config.ERASE_INSURANCE),
-                     drawnBirdWidth+(2*config.ERASE_INSURANCE),
-                     drawnBirdHeight+(2*config.ERASE_INSURANCE));
-	*/
-	cGC.beginPath();
-	cGC.fillStyle="black";
-	cGC.arc(X,Y,drawnBirdWidth+config.ERASE_INSURANCE,0,Math.PI*2,true);
-	cGC.fill();
-	cGC.closePath();
-	if (el.neighbors)
-	    {
-		cGC.beginPath();
-		el.neighbors.forEach(function(neighbor){
-			cGC.moveTo(X,Y);
-			cGC.lineTo(neighbor.x,neighbor.y);
-		    });
-	   	cGC.stroke();
-	    }
-    }
-
-    var doColor=function(el)
-    {
-		el.forwardColor(el);
-    }
-    
-
+ 
     var moveLoop=function(){
-	var timer=new Stopwatch();
-	timer.start();
-	flockers.forEach(doErase);
-	if (mustKill && false)
-	    {
-		mustKill=false;
 
-		flockers.slice(0,Math.round(flockers.length/10)).forEach(function(thisFlocker){
-			threeSCENE.remove(thisFlocker.threeMODEL);
-			
-			if (thisFlocker.neighbors){
-				thisFlocker.neighbors.forEach(function(neighbor){
-					//remove the lines
-					if (neighbor.threeLINE){
-						threeSCENE.remove(neighbor.threeLINE);
-					}
-				});
-			}
-			
-			trackingTree.destroyItem(thisFlocker);
-		    });
-		window.flockers=flockers=flockers.slice(Math.round(flockers.length/10));
-	    }
-	flockers.forEach(getNewMomentum);
-	flockers.forEach(doMovement);
-	flockers.forEach(doColor);
-	//	cGC.clearRect(0,0,CANVAS_WIDTH,CANVAS_HEIGHT);
-	flockers.forEach(doDraw);
+		flockers.forEach(getNewMomentum);
+		flockers.forEach(doMovement);
+		flockers.forEach(doDraw);
 	
-	threeRenderer.render(threeSCENE,threeCAMERA);
+		threeRenderer.render(threeSCENE,threeCAMERA);
 	
-	timer.stop();
-	if (timer.getMillis()<config.MIN_LAG_MS && false)
-	    {
-		makeAFlocker();
-	    }
-	if (timer.getMillis()>config.MAX_LAG_MS && flockers.length > 0 && false)
-	    {
-		mustKill=true;
-	    }
     };
 
 	function makeRenderer(canvas){
