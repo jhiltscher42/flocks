@@ -1,6 +1,6 @@
-define(["vector3d","cubeTree","cubeItem","Stopwatch","Three","jQuery"],function(vector,cubeTree,cubeItem,Stopwatch,THREE,$){
+define(["vector3d","cubeTree","cubeItem","Stopwatch","Three","jQuery"],function(vector,cubeTree,cubeItem,Stopwatch,Three,$){
 	var CANVAS_WIDTH, CANVAS_HEIGHT, MODEL_DEPTH=2000,
-	FLOCK_POPULATION=1,
+	FLOCK_POPULATION=100,
 	config={MAX_SPEED:20,
 		NEIGHBOR_DISTANCE:100,
 		REPULSION_FACTOR:1.05,
@@ -13,6 +13,7 @@ define(["vector3d","cubeTree","cubeItem","Stopwatch","Three","jQuery"],function(
 		ERASE_INSURANCE:1,
 		BIRD_WIDTH:20,
 		BIRD_HEIGHT:20,
+		DRAW_LINES:false
     };
     
     if (!console) console={};
@@ -21,9 +22,14 @@ define(["vector3d","cubeTree","cubeItem","Stopwatch","Three","jQuery"],function(
 
     var canvas,cGC;
 
+	var threeSCENE,threeCAMERA,threeRenderer;
+	
     var canvasOffset={left:0,top:0};
     var currentCameraCoords;
 
+	var quaternionOfHeading=new THREE.Quaternion();
+	var eulerRotator=new THREE.Euler();
+	
     var n=0;
 
     var mustKill=false;
@@ -109,10 +115,34 @@ define(["vector3d","cubeTree","cubeItem","Stopwatch","Three","jQuery"],function(
     {
 	var treeMates=trackingTree.getProximateList({x:el.getPos().x,y:el.getPos().y,z:el.getPos().z,range:config.NEIGHBOR_DISTANCE});
 	var myMates=treeMates.filter(function(a){return el.name!=a.name;});
+	if (el.neighbors){
+		el.neighbors.forEach(function(neighbor){
+			//remove neighbor line from scene
+			if (neighbor.threeLINE){
+				threeSCENE.remove(neighbor.threeLINE);
+			}
+		});
+	}
+	//clear neighbors list
 	el.neighbors=[];
 	if (myMates.length>0)
 	    {
-		el.neighbors=myMates.map(function(a){return {x:a.getPos().x, y:a.getPos().y, z:a.getPos().z, mate:a}});
+		el.neighbors=myMates.map(function(a){
+			var ret={x:a.getPos().x, 
+					y:a.getPos().y, 
+					z:a.getPos().z, 
+					mate:a};
+			//add line to neighbor to scene
+			if ("DRAW_LINES" in config && config.DRAW_LINES==true)
+			{
+				var geometry=new THREE.Geometry();
+				geometry.vertices.push(new THREE.Vector3(el.getPos().x,el.getPos().y,el.getPos().z),
+					      new THREE.Vector3(ret.x,ret.y,ret.z));
+				ret.threeLINE=new THREE.Line(geometry,new THREE.LineBasicMaterial({color:0x00FF00}));
+				threeSCENE.add(ret.threeLINE);
+			}
+			return ret;
+		});
 	//I like to move towards the center of myMates
 		var matesPositions=myMates.map(function(a){return new vector(a.getPos().x,a.getPos().y,a.getPos().z)});
 		var centerOfMates=matesPositions.reduce(sumVectors).divideByScalar(myMates.length);
@@ -217,7 +247,7 @@ define(["vector3d","cubeTree","cubeItem","Stopwatch","Three","jQuery"],function(
     var drawnBirdWidth=0;
     var drawnBirdHeight=0;
 
-    var doDraw=function(el)
+    var old_doDraw=function(el)
     {
 	cGC.fillStyle=el.color; //'rgb(255,255,255)';
 	cGC.strokeStyle='rgb(0,0,255)';
@@ -247,7 +277,71 @@ define(["vector3d","cubeTree","cubeItem","Stopwatch","Three","jQuery"],function(
 	    }
     }
     
-    var doErase=function(el)
+	function neighborToSpike(neighbor){
+		return new Three.Vector3(neighbor.x,neighbor.y,neighbor.z);
+	}
+	
+	var doDraw=function(el){
+		//oh.  in THREE, we don't keep creating objects, that's Bad.  Ah.
+		if (!("threeMODEL" in el)){
+			//el.threeMODEL=new THREE.Mesh(new THREE.BoxGeometry(20,20,20),new THREE.MeshLambertMaterial({color:el.color}));
+			var spikyGeometry=new Three.Geometry();
+			var vertices=null; //el.neighbors.map(neighborToSpike);
+			
+			if (!vertices || vertices.length==0){
+				if (!vertices) vertices=[];
+				vertices[0]=new Three.Vector3(0,0,-10);
+				vertices[1]=new Three.Vector3(0,-5,10);
+				vertices[2]=new Three.Vector3(20,0,10);
+				vertices[3]=new Three.Vector3(0,5,10);
+				vertices[4]=new Three.Vector3(-20,0,10);
+			}
+
+			function colorToMaterial(color){
+				return new THREE.MeshBasicMaterial({color:color
+				,side:THREE.DoubleSide
+				});
+				}
+			
+			var materials=[0x333333,0xFFFFFF,0xFFFFFF,0x333333,0xFF0000,0xFF0000].map(colorToMaterial);
+			spikyGeometry.vertices=vertices;
+			
+			var backNormal=new Three.Vector3(0,0,1);
+			
+			spikyGeometry.faces.push(new Three.Face3(0,2,1,undefined,undefined,0));
+			spikyGeometry.faces.push(new Three.Face3(0,2,3,undefined,undefined,1));
+			spikyGeometry.faces.push(new Three.Face3(0,3,4,undefined,undefined,2));
+			spikyGeometry.faces.push(new Three.Face3(0,4,1,undefined,undefined,3));
+			spikyGeometry.faces.push(new Three.Face3(1,3,4,backNormal,undefined,4));
+			spikyGeometry.faces.push(new Three.Face3(1,3,2,backNormal,undefined,5));
+			
+			//spikyGeometry.faces.forEach(function(face,index){face.materialIndex=index;});
+			
+			spikyGeometry.computeFaceNormals();
+			
+			el.threeMODEL=new Three.Mesh(spikyGeometry,
+			//new Three.CubeGeometry(10,10,10),
+			new Three.MeshFaceMaterial(materials));
+			threeSCENE.add(el.threeMODEL);
+		}
+		
+		var modelPos=el.getPos();
+		el.threeMODEL.position.x=modelPos.x;
+		el.threeMODEL.position.y=modelPos.y;
+		el.threeMODEL.position.z=modelPos.z;
+		var heading=new THREE.Vector3(el.momentum.X,el.momentum.Y,el.momentum.Z).normalize();
+		quaternionOfHeading.setFromUnitVectors(new THREE.Vector3(0,0,-1),heading);
+		eulerRotator.setFromQuaternion(quaternionOfHeading);
+		el.threeMODEL.rotation.x=eulerRotator.x;
+		el.threeMODEL.rotation.y=eulerRotator.y;
+		el.threeMODEL.rotation.z=eulerRotator.z;
+		
+	}
+	
+	var doErase=function(el){
+	}
+	
+    var Old_doErase=function(el)
     {
 	cGC.strokeStyle='rgb(0,0,0)';
 	cGC.lineWidth=1+config.ERASE_INSURANCE;
@@ -279,7 +373,7 @@ define(["vector3d","cubeTree","cubeItem","Stopwatch","Three","jQuery"],function(
 
     var doColor=function(el)
     {
-	el.forwardColor(el);
+		el.forwardColor(el);
     }
     
 
@@ -287,11 +381,22 @@ define(["vector3d","cubeTree","cubeItem","Stopwatch","Three","jQuery"],function(
 	var timer=new Stopwatch();
 	timer.start();
 	flockers.forEach(doErase);
-	if (mustKill)
+	if (mustKill && false)
 	    {
 		mustKill=false;
 
 		flockers.slice(0,Math.round(flockers.length/10)).forEach(function(thisFlocker){
+			threeSCENE.remove(thisFlocker.threeMODEL);
+			
+			if (thisFlocker.neighbors){
+				thisFlocker.neighbors.forEach(function(neighbor){
+					//remove the lines
+					if (neighbor.threeLINE){
+						threeSCENE.remove(neighbor.threeLINE);
+					}
+				});
+			}
+			
 			trackingTree.destroyItem(thisFlocker);
 		    });
 		window.flockers=flockers=flockers.slice(Math.round(flockers.length/10));
@@ -301,28 +406,51 @@ define(["vector3d","cubeTree","cubeItem","Stopwatch","Three","jQuery"],function(
 	flockers.forEach(doColor);
 	//	cGC.clearRect(0,0,CANVAS_WIDTH,CANVAS_HEIGHT);
 	flockers.forEach(doDraw);
+	
+	threeRenderer.render(threeSCENE,threeCAMERA);
+	
 	timer.stop();
-	if (timer.getMillis()<config.MIN_LAG_MS)
+	if (timer.getMillis()<config.MIN_LAG_MS && false)
 	    {
 		makeAFlocker();
 	    }
-	if (timer.getMillis()>config.MAX_LAG_MS && flockers.length > 0)
+	if (timer.getMillis()>config.MAX_LAG_MS && flockers.length > 0 && false)
 	    {
 		mustKill=true;
 	    }
     };
 
+	function makeRenderer(canvas){
+		return new THREE.WebGLRenderer({canvas:canvas[0]});
+		}
+	
     $(document).ready(function(){
 	    canvas=$("#cCanvas");
-
-	    cGC=canvas[0].getContext('2d');
-
+		
 	    CANVAS_WIDTH=canvas[0].width;
 	    CANVAS_HEIGHT=canvas[0].height;
-	    currentCameraCoords={xrange:CANVAS_WIDTH,yrange:CANVAS_HEIGHT,topleft:new vector(0,0)};
 
+		
+	    //cGC=canvas[0].getContext('2d');
 
+		
+		threeSCENE=new Three.Scene();
+		
+		threeSCENE.add(new Three.AmbientLight(0xFFFFFF));
+		//threeSCENE.fog=new Three.Fog(0x000000,-MODEL_DEPTH,MODEL_DEPTH);
+		
+		threeCAMERA=new Three.OrthographicCamera(0,CANVAS_WIDTH,0,CANVAS_HEIGHT,-MODEL_DEPTH,MODEL_DEPTH);
+		
+		window.camera=threeCAMERA;
+		
+		threeRenderer=makeRenderer(canvas);
+
+		threeRenderer.setClearColor(0x000000);
+
+		threeRenderer.render(threeSCENE,threeCAMERA);
+		
 	    trackingTree=new cubeTree(0,0,0,CANVAS_WIDTH,CANVAS_HEIGHT,MODEL_DEPTH,4);
+		window.scene=threeSCENE;
 	    window.trackingTree=trackingTree;
 	    window.flockers=flockers;
 
