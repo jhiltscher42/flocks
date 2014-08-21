@@ -295,11 +295,13 @@ define(["vector3d","cubeTree","cubeItem","Stopwatch","Three","jQuery"],function(
 		flockers.forEach(getNewMomentum);
 		flockers.forEach(doMovement);
 		flockers.forEach(doDraw);
-	
-		threeRenderer.render(threeSCENE,threeCAMERA);
-	
     };
 
+	function renderOnAnim(){
+		threeRenderer.render(threeSCENE,threeCAMERA);
+		window.requestAnimationFrame(renderOnAnim);
+	}
+	
 	function makeRenderer(canvas){
 		return new THREE.WebGLRenderer({canvas:canvas[0]});
 		}
@@ -327,7 +329,7 @@ define(["vector3d","cubeTree","cubeItem","Stopwatch","Three","jQuery"],function(
 
 		threeRenderer.setClearColor(0x000000);
 
-		threeRenderer.render(threeSCENE,threeCAMERA);
+		renderOnAnim();//threeRenderer.render(threeSCENE,threeCAMERA);
 		
 	    trackingTree=new cubeTree(0,0,0,CANVAS_WIDTH,CANVAS_HEIGHT,MODEL_DEPTH,4);
 		window.scene=threeSCENE;
