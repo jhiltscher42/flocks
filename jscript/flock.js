@@ -1,4 +1,5 @@
-define(["vector3d","cubeTree","cubeItem","Stopwatch","Three","jQuery"],function(vector,cubeTree,cubeItem,Stopwatch,Three,$){
+define(["vector3d","cubeTree","cubeItem","Stopwatch","Three","jQuery","Detector"],
+function(vector,cubeTree,cubeItem,Stopwatch,THREE,$,Detector){
 	var CANVAS_WIDTH, CANVAS_HEIGHT, MODEL_DEPTH=2000,
 	FLOCK_POPULATION=100,
 	config={MAX_SPEED:20,
@@ -233,16 +234,16 @@ define(["vector3d","cubeTree","cubeItem","Stopwatch","Three","jQuery"],function(
 		//oh.  in THREE, we don't keep creating objects, that's Bad.  Ah.
 		if (!("threeMODEL" in el)){
 			//el.threeMODEL=new THREE.Mesh(new THREE.BoxGeometry(20,20,20),new THREE.MeshLambertMaterial({color:el.color}));
-			var spikyGeometry=new Three.Geometry();
+			var spikyGeometry=new THREE.Geometry();
 			var vertices=null; //el.neighbors.map(neighborToSpike);
 			
 			if (!vertices || vertices.length==0){
 				if (!vertices) vertices=[];
-				vertices[0]=new Three.Vector3(0,0,-10);
-				vertices[1]=new Three.Vector3(0,-5,10);
-				vertices[2]=new Three.Vector3(20,0,10);
-				vertices[3]=new Three.Vector3(0,5,10);
-				vertices[4]=new Three.Vector3(-20,0,10);
+				vertices[0]=new THREE.Vector3(0,0,-10);
+				vertices[1]=new THREE.Vector3(0,-5,10);
+				vertices[2]=new THREE.Vector3(20,0,10);
+				vertices[3]=new THREE.Vector3(0,5,10);
+				vertices[4]=new THREE.Vector3(-20,0,10);
 			}
 
 			function colorToMaterial(color){
@@ -254,22 +255,22 @@ define(["vector3d","cubeTree","cubeItem","Stopwatch","Three","jQuery"],function(
 			var materials=[0x333333,0xFFFFFF,0xFFFFFF,0x333333,0xFF0000,0xFF0000].map(colorToMaterial);
 			spikyGeometry.vertices=vertices;
 			
-			var backNormal=new Three.Vector3(0,0,1);
+			var backNormal=new THREE.Vector3(0,0,1);
 			
-			spikyGeometry.faces.push(new Three.Face3(0,2,1,undefined,undefined,0));
-			spikyGeometry.faces.push(new Three.Face3(0,2,3,undefined,undefined,1));
-			spikyGeometry.faces.push(new Three.Face3(0,3,4,undefined,undefined,2));
-			spikyGeometry.faces.push(new Three.Face3(0,4,1,undefined,undefined,3));
-			spikyGeometry.faces.push(new Three.Face3(1,3,4,backNormal,undefined,4));
-			spikyGeometry.faces.push(new Three.Face3(1,3,2,backNormal,undefined,5));
+			spikyGeometry.faces.push(new THREE.Face3(0,2,1,undefined,undefined,0));
+			spikyGeometry.faces.push(new THREE.Face3(0,2,3,undefined,undefined,1));
+			spikyGeometry.faces.push(new THREE.Face3(0,3,4,undefined,undefined,2));
+			spikyGeometry.faces.push(new THREE.Face3(0,4,1,undefined,undefined,3));
+			spikyGeometry.faces.push(new THREE.Face3(1,3,4,backNormal,undefined,4));
+			spikyGeometry.faces.push(new THREE.Face3(1,3,2,backNormal,undefined,5));
 			
 			//spikyGeometry.faces.forEach(function(face,index){face.materialIndex=index;});
 			
 			spikyGeometry.computeFaceNormals();
 			
-			el.threeMODEL=new Three.Mesh(spikyGeometry,
-			//new Three.CubeGeometry(10,10,10),
-			new Three.MeshFaceMaterial(materials));
+			el.threeMODEL=new THREE.Mesh(spikyGeometry,
+			//new THREE.CubeGeometry(10,10,10),
+			new THREE.MeshFaceMaterial(materials));
 			threeSCENE.add(el.threeMODEL);
 		}
 		
@@ -303,7 +304,8 @@ define(["vector3d","cubeTree","cubeItem","Stopwatch","Three","jQuery"],function(
 	}
 	
 	function makeRenderer(canvas){
-		return new THREE.WebGLRenderer({canvas:canvas[0]});
+		return Detector.webgl ? new THREE.WebGLRenderer({canvas:canvas[0]})
+		                      : new THREE.CanvasRenderer({canvas:canvas[0]});
 		}
 	
     $(document).ready(function(){
@@ -316,12 +318,12 @@ define(["vector3d","cubeTree","cubeItem","Stopwatch","Three","jQuery"],function(
 	    //cGC=canvas[0].getContext('2d');
 
 		
-		threeSCENE=new Three.Scene();
+		threeSCENE=new THREE.Scene();
 		
-		threeSCENE.add(new Three.AmbientLight(0xFFFFFF));
-		//threeSCENE.fog=new Three.Fog(0x000000,-MODEL_DEPTH,MODEL_DEPTH);
+		threeSCENE.add(new THREE.AmbientLight(0xFFFFFF));
+		//threeSCENE.fog=new THREE.Fog(0x000000,-MODEL_DEPTH,MODEL_DEPTH);
 		
-		threeCAMERA=new Three.OrthographicCamera(0,CANVAS_WIDTH,0,CANVAS_HEIGHT,-MODEL_DEPTH,MODEL_DEPTH);
+		threeCAMERA=new THREE.OrthographicCamera(0,CANVAS_WIDTH,0,CANVAS_HEIGHT,-MODEL_DEPTH,MODEL_DEPTH);
 		
 		window.camera=threeCAMERA;
 		
